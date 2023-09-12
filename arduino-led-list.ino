@@ -89,7 +89,7 @@ void bootUpSequence()
   pixels.begin();
   
   for (int i = 0; i < NUMPIXELS; i++) {
-  	setLedColor(i, 255, 0, 255);
+  	setLedColor(i, random(255), random(255), random(255));
   }
   
   int delTime = 250;
@@ -221,6 +221,8 @@ void startList(int brightness)
 
 void setup()
 {
+  randomSeed(analogRead(0));
+  
   initArrays();
   pinMode(sensorPin, INPUT);
   pinMode(4, INPUT);
@@ -233,13 +235,13 @@ void loop()
   static int i = 0;
   static int prevTime = 0;
   sensorValue = analogRead(sensorPin);
-  checkLightMode();
 
   debounceControl(powerBtnPin, powerBtnToggle);
   //devounceControl(colorBtnPin, colorBtnToggle);
   //btnState = digitalRead(powerBtnPin);
   
-  
+  checkLightMode();
+
   //Serial.println(powerButtonHeld);
   
   
