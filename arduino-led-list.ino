@@ -2,9 +2,9 @@
   Dato: 12.09.23
 */
 
-#include <Adafruit_NeoPixel.h>			// importerer bibliotek for funksjonalitet av led-listen
-#define PIN 2   						// inn-pinne til led-listen
-#define NUMPIXELS 8 					// antall led i listen
+#include <Adafruit_NeoPixel.h>			          // importerer bibliotek for funksjonalitet av led-listen
+#define PIN 2   						                  // inn-pinne til led-listen
+#define NUMPIXELS 8 				                	// antall led i listen
 
 // oppretter pixels-objekt som kaller sin egen kode
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -34,44 +34,14 @@ byte ledPosition[NUMPIXELS];				// array som holder posisjonene til hver LED
 byte rstlst[NUMPIXELS];						// temp liste som holder posisjoner i av-posisjon
 RGB rgbValuesTemp[NUMPIXELS];				// temp liste som holder posisjoner i av-posisjon
 
-const byte modeBtnPin  = 6;					// mode/speed
-const byte colorBtnPin = 5;					// color/brightness pin
-const byte powerBtnPin = 4;					// av/på-knapp pin
 const int sensorPin = A1;					
-
-unsigned long prevDebounceValue = 0; 		// the last time the output pin was toggled
 unsigned long debounceDelay = 10;
-unsigned long BtnHeld = 0;
-
 const int timer = 40;						
 const int powerCheckTimer = 500;			// burde vært en liste
 
-int buttonState;
-int buttonState2;
 int sensorValue;
-
-
-int newBtnHeld;
-
-int colorBtnToggle = LOW;
-
-
-int powerBtnToggle = LOW;	     	// the current state of the output pin
-int btnState;
-int powerBtnState;      	  						// the current reading from the input pin
-int prevBtnState = LOW;	
-
-int powerBtnHeld;
-int newPowerBtnHeld;
-
-// Burde laget struct eller liste for mye av disse verdiene men ikke nok tid.
-
 unsigned int counting;
-
 bool lightMode;
-bool closeFlag;
-
-
 //int sensorMax = 0;						// bruk om tid til
 //int sensorMin = 1023;						// bruk om tid til
 
@@ -162,11 +132,7 @@ void debounceControl(struct Button &button)
   if ((millis() - button.prevDebounce) > debounceDelay) {
     
     if (readState != button.state) {
-      	//Serial.println("2");
-
         button.state = readState;
-      //Serial.println("Readstater");
-
       if (button.state == HIGH) {
         button.toggle = !button.toggle;
         button.held = millis();
@@ -175,8 +141,6 @@ void debounceControl(struct Button &button)
   }
   button.prevState = readState;
 }
-
-
 
 void powerOffLed()
 {
@@ -277,15 +241,12 @@ void loop()
   debounceControl(powerBtn);
   delay(10);
   debounceControl(colorBtn);
-  delay(10);
+  delay(10);                                              // Usikker hvorfor men ser ut som koden kjører mye bedre med delay her
   debounceControl(modeBtn);
-  
-  checkLightMode(colorBtn); // når mørkt lyser den mindre
+  delay(10);
+  checkLightMode(colorBtn);                               // når det er mørkt lyser den mindre
 
-  //Serial.println(powerBtnToggle);
-  //Serial.println(powerBtn.state);
   
-  //Serial.println(btnState);
   
   if (millis() - prevTime > timer){
     prevTime = millis();
