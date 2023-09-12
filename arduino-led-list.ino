@@ -24,8 +24,9 @@ struct Button
   int prevState;
   int prevDebounce;
   int toggle;
-  int presses;               
+  int presses;       
   unsigned long held;
+  unsigned long heldInstant;
 };
 
 RGB rgbValues[NUMPIXELS];					// array som holder RGB-verdiene til hver LED
@@ -48,11 +49,7 @@ const int powerCheckTimer = 500;			// burde vært en liste
 int buttonState;
 int buttonState2;
 int sensorValue;
-int buttonPress;
 
-int powerBtnPresses;
-int lightBtnPresses;
-int colorBtnPresses;
 
 int newBtnHeld;
 
@@ -81,9 +78,9 @@ bool closeFlag;
 Button powerBtn, colorBtn, modeBtn;
 
 void initButtons() {
- powerBtn = {4, LOW, 0, LOW, 0, 0, 0};
- colorBtn = {5, LOW, 0, LOW, 0, 0, 0};
- modeBtn = {6, LOW, 0, LOW, 0, 0, 0};
+ powerBtn = {4, LOW, 0, LOW, 0, 0, 0, 0};
+ colorBtn = {5, LOW, 0, LOW, 0, 0, 0, 0};
+ modeBtn = {6, LOW, 0, LOW, 0, 0, 0, 0};
 }
 
 void initArrays()
@@ -147,16 +144,15 @@ void shiftLEDforward()
   }
 }
 
-
 void debounceControl(struct Button &button)
 {																	// trengte referanse til toggle for å funke
   int readState = digitalRead(button.btnPin);
   if (readState != button.prevState) {
     if (button.prevDebounce < button.held) {
       button.held = millis() - button.held;
-      newBtnHeld = button.held;
+      button.heldInstant = button.held;
       Serial.print("Button held for: ");
-      Serial.print(newBtnHeld);
+      Serial.print(button.heldInstant);
       Serial.println(" ms");
       button.presses++;
     }
@@ -203,18 +199,17 @@ void restartLed()
   memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);
 }
 
-void powerCheck() 
+void powerCheck(struct Button &powerBtn) 
 {
   //Serial.println(newPowerBtnHeld);
-  if (newBtnHeld > 300 && newBtnHeld != 0) {
-    Serial.println(powerBtnToggle);
+  if (powerBtn.heldInstant > 300 && powerBtn.heldInstant != 0) {
   	saveLedState();
     powerOffLed();
-    newBtnHeld = 1;
-    while (newBtnHeld < 300 && newBtnHeld != 0) {
+    powerBtn.heldInstant = 1;
+    while (powerBtn.heldInstant < 300 && powerBtn.heldInstant != 0) {
   	  debounceControl(powerBtn);
   	}
-    newBtnHeld = 0;
+    powerBtn.heldInstant = 0;
     restartLed();
   }
 }
@@ -233,7 +228,7 @@ byte lightBrightnessControl(int analogPin)
 
 void checkLightMode()
 {
-  if (powerBtnToggle && newBtnHeld > 5000) {
+  if (newBtnHeld > 5000) {
     startList(lightBrightnessControl(sensorPin));
     lightMode = true;
   } else {
@@ -258,6 +253,7 @@ void setup()
   initButtons();
   
   initArrays();
+  
   pinMode(sensorPin, INPUT);
   pinMode(4, INPUT);
   Serial.begin(9600);
@@ -309,7 +305,7 @@ void loop()
   if (!lightMode) {
     startList(255);
   }
-  //powerCheck();
+  powerCheck(powerBtn);
   
 }
 
