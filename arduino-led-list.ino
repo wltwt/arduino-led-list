@@ -32,7 +32,7 @@ unsigned long prevDebounceValue = 0; 		// the last time the output pin was toggl
 unsigned long debounceDelay = 10;
 unsigned long powerButtonHeld = 0;
 
-const int timer = 100;						
+const int timer = 40;						
 const int powerCheckTimer = 500;			// burde vært en liste
 
 int buttonState;
@@ -49,12 +49,15 @@ int prevBtnState = LOW;
 
 unsigned int counting;
 
+bool lightMode;
+
 
 //int sensorMax = 0;						// bruk om tid til
 //int sensorMin = 1023;						// bruk om tid til
 
 
-void initArrays(){
+void initArrays()
+{
   for (int i = 0; i < NUMPIXELS; i++) {
   	ledPosition[i] = i;
   }
@@ -67,23 +70,22 @@ void initArrays(){
   memcpy(rstlst, ledPosition, NUMPIXELS);
 }
 
-byte lightConstrain(int lightVal) {
-  return lightVal >> 4;
-}
-
-int blinkLed(int i) {
+int blinkLed(int i) 
+{
   if (i < NUMPIXELS) {
   	i++;
   }
 }
 
-void setLedColor(int pos, int red, int green, int blue) {
+void setLedColor(int pos, int red, int green, int blue)
+{
   rgbValues[pos].r = red;
   rgbValues[pos].g = green;
   rgbValues[pos].b = blue;
 }
 
-void bootUpSequence() {
+void bootUpSequence() 
+{
   pixels.begin();
   
   for (int i = 0; i < NUMPIXELS; i++) {
@@ -100,11 +102,13 @@ void bootUpSequence() {
   }
 }
 
-void resetList() {
+void resetList() 
+{
   memcpy(ledPosition, rstlst, NUMPIXELS);
 }
 
-void shiftLEDforward(){
+void shiftLEDforward()
+{
   byte temp[sizeof(ledPosition)];
   memcpy(temp, ledPosition, sizeof(ledPosition));
   
@@ -113,11 +117,13 @@ void shiftLEDforward(){
   }
 }
 
-bool lastBtnCheck(int readState) {
+bool lastBtnCheck(int readState) 
+{
   return readState != prevBtnState;					
 }
 
-void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle for å funke
+void debounceControl(int btnPin, int &toggle) 
+{																	// trengte referanse til toggle for å funke
   int readState = digitalRead(btnPin);
 
   if (lastBtnCheck(readState)) {
@@ -149,7 +155,8 @@ void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle
   prevBtnState = readState;
 }
 
-void powerOffLed() {
+void powerOffLed()
+{
   for (int i = 0; i < NUMPIXELS; i++) {
     rgbValues[i].r = 0;
     rgbValues[i].g = 0;
@@ -158,15 +165,18 @@ void powerOffLed() {
   startList(0);
 }
 
-void saveLedState() {
+void saveLedState() 
+{
   memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
 }
 
-void restartLed() {
+void restartLed() 
+{
   memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);
 }
 
-void powerCheck() {
+void powerCheck() 
+{
   if (powerBtnToggle) {
   	saveLedState();
     powerOffLed();
@@ -177,11 +187,29 @@ void powerCheck() {
   }
 }
 
-byte readLightSensor(int analogPin) {
-  return 1; 
+byte lightConstrain(int lightVal)			// bitshift for bedre tall
+{
+  return lightVal >> 3;
 }
 
-void startList(int brightness) {
+byte lightBrightnessControl(int analogPin)
+{
+  int readBrightness = analogRead(analogPin);
+  return lightConstrain(readBrightness);
+}
+
+void checkLightMode()
+{
+  if (powerButtonHeld > 300) {
+    startList(lightBrightnessControl(sensorPin));
+    lightMode = true;
+  } else {
+  	lightMode = false;
+  }
+}
+
+void startList(int brightness) 
+{
   pixels.setBrightness(brightness);
   
   for (int i = 0; i < NUMPIXELS; i++) {
@@ -189,6 +217,7 @@ void startList(int brightness) {
   }
   pixels.show();
 }
+
 
 void setup()
 {
@@ -204,8 +233,8 @@ void loop()
   static int i = 0;
   static int prevTime = 0;
   sensorValue = analogRead(sensorPin);
+  checkLightMode();
 
-  
   debounceControl(powerBtnPin, powerBtnToggle);
   //devounceControl(colorBtnPin, colorBtnToggle);
   //btnState = digitalRead(powerBtnPin);
@@ -234,8 +263,9 @@ void loop()
     }
   }
 
-  
-  startList(255);
+  if (!lightMode) {
+    startList(255);
+  }
   powerCheck();
   
 }
