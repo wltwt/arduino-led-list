@@ -25,7 +25,8 @@ const byte colorBtnPin = 5;				// color/brightness pin
 const byte powerBtnPin = 4;				// av/på-knapp pin
 
 unsigned long prevDebounceValue = 0; 		// the last time the output pin was toggled
-unsigned long debounceDelay = 10;   
+unsigned long debounceDelay = 10;
+unsigned long powerButtonHeld = 0;
 
 const int timer = 100;						
 const int powerCheckTimer = 500;			// burde vært en liste
@@ -33,6 +34,7 @@ const int powerCheckTimer = 500;			// burde vært en liste
 int buttonState;
 int buttonState2;
 int sensorValue;
+int buttonPress;
 
 
 int powerBtnToggle = LOW;			     	// the current state of the output pin
@@ -124,28 +126,40 @@ void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle
   int readState = digitalRead(btnPin);
   
   //Serial.println(lastBtnCheck(readState));
-  
   if (lastBtnCheck(readState)) {
-  	prevDebounceValue = millis();					
+    //Serial.println(millis());
+    //Serial.println(powerButtonHeld);
+    if (prevDebounceValue < powerButtonHeld) {
+      powerButtonHeld = millis() - powerButtonHeld;
+      Serial.print("BUTTON HELD FOR: ");
+      Serial.print(powerButtonHeld);
+      Serial.println(" MILLISECONDS");
+        buttonPress++;
+   		Serial.println(buttonPress);
+    }
+    
+    
+    
+  	prevDebounceValue = millis();
+
+
   }
   
   if ((millis() - prevDebounceValue) > debounceDelay) {
-  	
-    /*
-    Serial.print(millis() - prevDebounceValue);
-    Serial.print(" and ");
-    Serial.print(millis());
-    Serial.println("\n");
-    //delay(1000);
-    */
     
     if (readState != btnState) {
+      	//Serial.println("2");
+
         btnState = readState;
-          
+      //Serial.println("Readstater");
+
       if (btnState == HIGH) {
-    	toggle = !toggle;
-        //Serial.println(toggle);
-      }
+        toggle = !toggle;
+        powerButtonHeld = millis();
+        //Serial.println("3");
+        //Serial.println(prevDebounceValue);
+		//Serial.println(powerButtonHeld);
+      } 
     
     }
         //Serial.println(btnState);
@@ -161,6 +175,7 @@ void powerOffLed() {
     rgbValues[i].g = 0;
     rgbValues[i].b = 0;
   }
+  startList(0);
 }
 
 void saveLedState() {
@@ -175,6 +190,7 @@ void restartLed() {
 void powerCheck() {
   if (powerBtnToggle) {
   	saveLedState();
+    powerOffLed();
     while (powerBtnToggle) {
   	  debounceControl(powerBtnPin, powerBtnToggle);
   	}
@@ -187,9 +203,8 @@ byte readLightSensor(int analogPin) {
 }
 
 void startList(int brightness) {
-  
   pixels.setBrightness(brightness);
-
+  
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(ledPosition[i], rgbValues[i].r, rgbValues[i].g, rgbValues[i].b);
   }
@@ -208,9 +223,6 @@ void setup()
   bootUpSequence();
 }
 
-
-
-
 void loop() 
 {
   static int i = 0;
@@ -222,7 +234,7 @@ void loop()
   //btnState = digitalRead(powerBtnPin);
   
   
-  Serial.println(powerBtnToggle);
+  //Serial.println(powerButtonHeld);
   
   
   //Serial.println(btnState);
