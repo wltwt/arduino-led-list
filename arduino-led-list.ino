@@ -28,9 +28,6 @@ struct Button
   unsigned long held;
 };
 
-
-
-
 RGB rgbValues[NUMPIXELS];					// array som holder RGB-verdiene til hver LED
 byte ledPosition[NUMPIXELS];				// array som holder posisjonene til hver LED
 byte rstlst[NUMPIXELS];						// temp liste som holder posisjoner i av-posisjon
@@ -81,13 +78,13 @@ bool closeFlag;
 //int sensorMax = 0;						// bruk om tid til
 //int sensorMin = 1023;						// bruk om tid til
 
-Button powerBtn;
+Button powerBtn, colorBtn, modeBtn;
 
 void initButtons() {
  powerBtn = {4, LOW, 0, LOW, 0, 0, 0};
+ colorBtn = {5, LOW, 0, LOW, 0, 0, 0};
+ modeBtn = {6, LOW, 0, LOW, 0, 0, 0};
 }
-
-
 
 void initArrays()
 {
@@ -154,9 +151,6 @@ void shiftLEDforward()
 void debounceControl(struct Button &button)
 {																	// trengte referanse til toggle for å funke
   int readState = digitalRead(button.btnPin);
-  
-  
-  
   if (readState != button.prevState) {
     if (button.prevDebounce < button.held) {
       button.held = millis() - button.held;
@@ -278,13 +272,18 @@ void loop()
   //sensorValue = analogRead(sensorPin);
 
   debounceControl(powerBtn);
+  delay(10);
+  debounceControl(colorBtn);
+  delay(10);
+  debounceControl(modeBtn);
+
   //debounceControl(colorBtnPin, colorBtnToggle, colorBtnPresses);
   //btnState = digitalRead(powerBtnPin);
   
   //checkLightMode(); // når mørkt lyser den mindre
 
   //Serial.println(powerBtnToggle);
-  Serial.println(powerBtn.state);
+  //Serial.println(powerBtn.state);
   
   //Serial.println(btnState);
   
