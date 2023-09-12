@@ -145,7 +145,7 @@ void shiftLEDforward()
 }
 
 void debounceControl(struct Button &button)
-{																	// trengte referanse til toggle for å funke
+{															
   int readState = digitalRead(button.btnPin);
   if (readState != button.prevState) {
     if (button.prevDebounce < button.held) {
@@ -174,7 +174,6 @@ void debounceControl(struct Button &button)
     }        
   }
   button.prevState = readState;
-  
 }
 
 
@@ -194,26 +193,25 @@ void saveLedState()
   memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
 }
 
-void restartLed() 
+void restartLed()
 {
   memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);
 }
 
-void powerCheck(struct Button &powerBtn) 
+void powerCheck(struct Button &button) 
 {
   //Serial.println(newPowerBtnHeld);
-  if (powerBtn.heldInstant > 300 && powerBtn.heldInstant != 0) {
+  if (button.heldInstant > 300 && button.heldInstant != 0) {
   	saveLedState();
     powerOffLed();
-    powerBtn.heldInstant = 1;
-    while (powerBtn.heldInstant < 300 && powerBtn.heldInstant != 0) {
-  	  debounceControl(powerBtn);
+    button.heldInstant = 1;
+    while (button.heldInstant < 300 && button.heldInstant != 0) {
+  	  debounceControl(button);
   	}
-    powerBtn.heldInstant = 0;
+    button.heldInstant = 0;
     restartLed();
   }
 }
-
 
 byte lightConstrain(int lightVal)			// bitshift for bedre tall
 {
@@ -226,14 +224,23 @@ byte lightBrightnessControl(int analogPin)
   return lightConstrain(readBrightness);
 }
 
-void checkLightMode()
+void checkLightMode(struct Button &button)
 {
-  if (newBtnHeld > 5000) {
+  int temp = button.presses;
+
+  if (button.heldInstant > 500 || lightMode) {
     startList(lightBrightnessControl(sensorPin));
-    lightMode = true;
-  } else {
-  	lightMode = false;
-  }
+    if (button.heldInstant < 500) {
+      button.heldInstant = 0;
+      lightMode = true;
+    } else if (button.heldInstant > 500 && lightMode) {
+      lightMode = false;
+      button.heldInstant = 0;
+    } else {
+      lightMode = true;
+      button.heldInstant = 0;
+    }
+  } 
 }
 
 void startList(int brightness) 
@@ -272,11 +279,8 @@ void loop()
   debounceControl(colorBtn);
   delay(10);
   debounceControl(modeBtn);
-
-  //debounceControl(colorBtnPin, colorBtnToggle, colorBtnPresses);
-  //btnState = digitalRead(powerBtnPin);
   
-  //checkLightMode(); // når mørkt lyser den mindre
+  checkLightMode(colorBtn); // når mørkt lyser den mindre
 
   //Serial.println(powerBtnToggle);
   //Serial.println(powerBtn.state);
