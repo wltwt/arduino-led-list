@@ -235,17 +235,11 @@ void startList(int brightness)
 void setup()
 {
   randomSeed(analogRead(0));
-
   initButtons();
-  
   initArrays();
-  
   pinMode(sensorPin, INPUT);
-  pinMode(4, INPUT);
-  
-  Serial.begin(9600);                               // debug
-
   bootUpSequence();                                
+  Serial.begin(9600);                               // debug
 }
 
 void loop() 
