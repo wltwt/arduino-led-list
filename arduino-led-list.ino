@@ -1,28 +1,32 @@
-#include <Adafruit_NeoPixel.h>
+/*
+  Dato: 12.09.23
+*/
 
-#define PIN 2   // input pin Neopixel is attached to
+#include <Adafruit_NeoPixel.h>			// importerer bibliotek for funksjonalitet av led-listen
+#define PIN 2   						// inn-pinne til led-listen
+#define NUMPIXELS 8 					// antall led i listen
 
-#define NUMPIXELS 8 // number of neopixels in Ring
-
+// oppretter pixels-objekt som kaller sin egen kode
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-typedef struct
+
+typedef struct								// oppretter en struct med verdiene til en farge
 {
   byte r;
   byte g;
   byte b;
 } RGB;
 
-RGB rgbValues[NUMPIXELS];				// array som holder RGB-verdiene til hver LED
-byte ledPosition[NUMPIXELS];			// array som holder posisjonene til hver LED
-byte rstlst[NUMPIXELS];
+RGB rgbValues[NUMPIXELS];					// array som holder RGB-verdiene til hver LED
+byte ledPosition[NUMPIXELS];				// array som holder posisjonene til hver LED
+byte rstlst[NUMPIXELS];						// temp liste som holder posisjoner i av-posisjon
+RGB rgbValuesTemp[NUMPIXELS];				// temp liste som holder posisjoner i av-posisjon
 
-RGB rgbValuesTemp[NUMPIXELS];
 
-
-const byte modeBtnPin  = 6;				// mode/speed
-const byte colorBtnPin = 5;				// color/brightness pin
-const byte powerBtnPin = 4;				// av/på-knapp pin
+const byte modeBtnPin  = 6;					// mode/speed
+const byte colorBtnPin = 5;					// color/brightness pin
+const byte powerBtnPin = 4;					// av/på-knapp pin
+const int sensorPin = A1;					
 
 unsigned long prevDebounceValue = 0; 		// the last time the output pin was toggled
 unsigned long debounceDelay = 10;
@@ -41,38 +45,30 @@ int powerBtnToggle = LOW;			     	// the current state of the output pin
 int btnState;      	  						// the current reading from the input pin
 int prevBtnState = LOW;						
 
-// Burde laget struct for mye av disse verdiene men ikke nok tid.
-
+// Burde laget struct eller liste for mye av disse verdiene men ikke nok tid.
 
 unsigned int counting;
 
 
-
-
-int sensorPin = A1;
-int sensorMax = 0;
-int sensorMin = 1023;
+//int sensorMax = 0;						// bruk om tid til
+//int sensorMin = 1023;						// bruk om tid til
 
 
 void initArrays(){
-  for (int i = 0; i < NUMPIXELS;i++) {
+  for (int i = 0; i < NUMPIXELS; i++) {
   	ledPosition[i] = i;
   }
-  
   for (int i = 0; i < NUMPIXELS; i++) {
   	rgbValues[i].r = 0;
     rgbValues[i].g = 0;
     rgbValues[i].b = 0;
   }
-  
   memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
-  
   memcpy(rstlst, ledPosition, NUMPIXELS);
 }
 
-// bitshift for for enklere tall og jobbe med
-byte lightConstrain(long microsecond) {
-  return microsecond >> 10; // * 13
+byte lightConstrain(int lightVal) {
+  return lightVal >> 4;
 }
 
 int blinkLed(int i) {
@@ -88,26 +84,25 @@ void setLedColor(int pos, int red, int green, int blue) {
 }
 
 void bootUpSequence() {
+  pixels.begin();
+  
   for (int i = 0; i < NUMPIXELS; i++) {
-  	setLedColor(i, 0, 0, 255);
+  	setLedColor(i, 255, 0, 255);
   }
+  
   int delTime = 250;
+  
   while (millis() < 1000) {
     startList(255);    
     delay(delTime);
     startList(0);  
     delay(delTime);
-  }      
+  }
 }
-
-
-
-
 
 void resetList() {
   memcpy(ledPosition, rstlst, NUMPIXELS);
 }
-
 
 void shiftLEDforward(){
   byte temp[sizeof(ledPosition)];
@@ -124,25 +119,17 @@ bool lastBtnCheck(int readState) {
 
 void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle for å funke
   int readState = digitalRead(btnPin);
-  
-  //Serial.println(lastBtnCheck(readState));
+
   if (lastBtnCheck(readState)) {
-    //Serial.println(millis());
-    //Serial.println(powerButtonHeld);
     if (prevDebounceValue < powerButtonHeld) {
       powerButtonHeld = millis() - powerButtonHeld;
-      Serial.print("BUTTON HELD FOR: ");
+      Serial.print("Button held for: ");
       Serial.print(powerButtonHeld);
-      Serial.println(" MILLISECONDS");
+      Serial.println(" ms");
         buttonPress++;
    		Serial.println(buttonPress);
     }
-    
-    
-    
   	prevDebounceValue = millis();
-
-
   }
   
   if ((millis() - prevDebounceValue) > debounceDelay) {
@@ -156,15 +143,8 @@ void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle
       if (btnState == HIGH) {
         toggle = !toggle;
         powerButtonHeld = millis();
-        //Serial.println("3");
-        //Serial.println(prevDebounceValue);
-		//Serial.println(powerButtonHeld);
       } 
-    
-    }
-        //Serial.println(btnState);
-    	//delay(100);
-
+    }        
   }
   prevBtnState = readState;
 }
@@ -180,7 +160,6 @@ void powerOffLed() {
 
 void saveLedState() {
   memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
-  powerOffLed();
 }
 
 void restartLed() {
@@ -208,10 +187,8 @@ void startList(int brightness) {
   for (int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(ledPosition[i], rgbValues[i].r, rgbValues[i].g, rgbValues[i].b);
   }
-  
   pixels.show();
 }
-
 
 void setup()
 {
@@ -219,7 +196,6 @@ void setup()
   pinMode(sensorPin, INPUT);
   pinMode(4, INPUT);
   Serial.begin(9600);
-  pixels.begin();
   bootUpSequence();
 }
 
@@ -230,7 +206,8 @@ void loop()
   sensorValue = analogRead(sensorPin);
 
   
-  debounceControl(powerBtnPin, powerBtnToggle);			
+  debounceControl(powerBtnPin, powerBtnToggle);
+  //devounceControl(colorBtnPin, colorBtnToggle);
   //btnState = digitalRead(powerBtnPin);
   
   
@@ -238,25 +215,7 @@ void loop()
   
   
   //Serial.println(btnState);
-
   
-
-  
-    
-   
-  //Serial.print(bt);
-  //Serial.println(", ");
-  //Serial.println("counted presses: ");
-  //Serial.println(counting);  
-
-  // Serial.print(cm);
-  // Serial.print("cm");
-  //Serial.println();
-
-  //delay(100);
-  
-  
-    
   if (millis() - prevTime > timer){
     prevTime = millis();
     shiftLEDforward();
@@ -274,34 +233,9 @@ void loop()
    	  i = 0;
     }
   }
-  
-  //pixels.setBrightness(i);
-
-  //pixels.setPixelColor(ledPosition[0], rgbValues[0].r, rgbValues[0].g, rgbValues[0].r);
-  //pixels.setPixelColor(ledPosition[1], rgbValues[1].r, rgbValues[1].g, rgbValues[1].r);
 
   
-  startList(100);
-  
-  
-  //pixels.show();
-  
-  /*
-  
-  pixels.setBrightness(i);
-  
-  
-  
-  pixels.setPixelColor(b[0], 10, 255, 10);
-  pixels.setPixelColor(b[1], 0, 0, 0);
-  pixels.setPixelColor(b[2], 0, 255, 255);
-  pixels.setPixelColor(b[3], 255, 255, 0);
-  pixels.setPixelColor(b[4], 255, 0, 0);
-  pixels.setPixelColor(b[5], 255, 0, 255);
-  
-  pixels.show();
-  //delay(timer);
-  */
+  startList(255);
   powerCheck();
   
 }
