@@ -15,35 +15,36 @@ typedef struct
 
 RGB rgbValues[NUMPIXELS];				// array som holder RGB-verdiene til hver LED
 byte ledPosition[NUMPIXELS];			// array som holder posisjonene til hver LED
+byte rstlst[NUMPIXELS];
+
+RGB rgbValuesTemp[NUMPIXELS];
 
 
 const byte modeBtnPin  = 6;				// mode/speed
 const byte colorBtnPin = 5;				// color/brightness pin
 const byte powerBtnPin = 4;				// av/på-knapp pin
 
-unsigned long prevDebounceValue = 0; 	// the last time the output pin was toggled
+unsigned long prevDebounceValue = 0; 		// the last time the output pin was toggled
 unsigned long debounceDelay = 10;   
 
-
-
-const int timer = 100;
-const int powerCheckTimer = 500;
+const int timer = 100;						
+const int powerCheckTimer = 500;			// burde vært en liste
 
 int buttonState;
 int buttonState2;
 int sensorValue;
 
 
-int powerBtnToggle = HIGH;			     	// the current state of the output pin
-int btnState;      	  			// the current reading from the input pin
-int prevBtnState = LOW;
+int powerBtnToggle = LOW;			     	// the current state of the output pin
+int btnState;      	  						// the current reading from the input pin
+int prevBtnState = LOW;						
 
+// Burde laget struct for mye av disse verdiene men ikke nok tid.
 
 
 unsigned int counting;
 
 
-byte rstlst[NUMPIXELS];
 
 
 int sensorPin = A1;
@@ -57,20 +58,20 @@ void initArrays(){
   }
   
   for (int i = 0; i < NUMPIXELS; i++) {
-  	rgbValues[i].r = 255;
-    rgbValues[i].g = 255;
+  	rgbValues[i].r = 0;
+    rgbValues[i].g = 0;
     rgbValues[i].b = 0;
   }
   
+  memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
+  
   memcpy(rstlst, ledPosition, NUMPIXELS);
 }
-
 
 // bitshift for for enklere tall og jobbe med
 byte lightConstrain(long microsecond) {
   return microsecond >> 10; // * 13
 }
-
 
 int blinkLed(int i) {
   if (i < NUMPIXELS) {
@@ -78,15 +79,33 @@ int blinkLed(int i) {
   }
 }
 
+void setLedColor(int pos, int red, int green, int blue) {
+  rgbValues[pos].r = red;
+  rgbValues[pos].g = green;
+  rgbValues[pos].b = blue;
+}
+
+void bootUpSequence() {
+  for (int i = 0; i < NUMPIXELS; i++) {
+  	setLedColor(i, 0, 0, 255);
+  }
+  int delTime = 250;
+  while (millis() < 1000) {
+    startList(255);    
+    delay(delTime);
+    startList(0);  
+    delay(delTime);
+  }      
+}
+
+
+
+
+
 void resetList() {
   memcpy(ledPosition, rstlst, NUMPIXELS);
 }
 
-void shutDownList() {
-  for (int i = 0; i < NUMPIXELS; i++) {
-  	ledPosition[i] = 0;
-  }
-}
 
 void shiftLEDforward(){
   byte temp[sizeof(ledPosition)];
@@ -97,9 +116,8 @@ void shiftLEDforward(){
   }
 }
 
-
 bool lastBtnCheck(int readState) {
-  return readState != prevBtnState;					// button press result in 1
+  return readState != prevBtnState;					
 }
 
 void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle for å funke
@@ -108,7 +126,7 @@ void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle
   //Serial.println(lastBtnCheck(readState));
   
   if (lastBtnCheck(readState)) {
-  	prevDebounceValue = millis();					// then this is true
+  	prevDebounceValue = millis();					
   }
   
   if ((millis() - prevDebounceValue) > debounceDelay) {
@@ -133,33 +151,61 @@ void debounceControl(int btnPin, int &toggle) {		// trengte referanse til toggle
         //Serial.println(btnState);
     	//delay(100);
 
-
   }
   prevBtnState = readState;
 }
 
-
-
-void powerCheck(int prevTime) {
-  if (millis() - prevTime > powerCheckTimer) {
-    prevTime = millis();
+void powerOffLed() {
+  for (int i = 0; i < NUMPIXELS; i++) {
+    rgbValues[i].r = 0;
+    rgbValues[i].g = 0;
+    rgbValues[i].b = 0;
   }
 }
 
+void saveLedState() {
+  memcpy(rgbValuesTemp, rgbValues, NUMPIXELS);
+  powerOffLed();
+}
 
+void restartLed() {
+  memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);
+}
+
+void powerCheck() {
+  if (powerBtnToggle) {
+  	saveLedState();
+    while (powerBtnToggle) {
+  	  debounceControl(powerBtnPin, powerBtnToggle);
+  	}
+    restartLed();
+  }
+}
+
+byte readLightSensor(int analogPin) {
+  return 1; 
+}
+
+void startList(int brightness) {
+  
+  pixels.setBrightness(brightness);
+
+  for (int i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(ledPosition[i], rgbValues[i].r, rgbValues[i].g, rgbValues[i].b);
+  }
+  
+  pixels.show();
+}
 
 
 void setup()
 {
   initArrays();
-
-  
   pinMode(sensorPin, INPUT);
   pinMode(4, INPUT);
-  
-  
   Serial.begin(9600);
   pixels.begin();
+  bootUpSequence();
 }
 
 
@@ -172,7 +218,7 @@ void loop()
   sensorValue = analogRead(sensorPin);
 
   
-  debounceControl(powerBtnPin, powerBtnToggle);
+  debounceControl(powerBtnPin, powerBtnToggle);			
   //btnState = digitalRead(powerBtnPin);
   
   
@@ -217,19 +263,16 @@ void loop()
     }
   }
   
-  pixels.setBrightness(i);
+  //pixels.setBrightness(i);
 
   //pixels.setPixelColor(ledPosition[0], rgbValues[0].r, rgbValues[0].g, rgbValues[0].r);
   //pixels.setPixelColor(ledPosition[1], rgbValues[1].r, rgbValues[1].g, rgbValues[1].r);
 
-  for (int i = 0; i < 2; i++) {
-    pixels.setPixelColor(ledPosition[i], rgbValues[i].r, rgbValues[i].g, rgbValues[i].b);
-  }
+  
+  startList(100);
   
   
-  
-  
-  pixels.show();
+  //pixels.show();
   
   /*
   
@@ -247,15 +290,7 @@ void loop()
   pixels.show();
   //delay(timer);
   */
+  powerCheck();
   
 }
-
-
-long microsecondsToCentimeters(long microseconds) {
-  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
-  // The ping travels out and back, so to find the distance of the object we
-  // take half of the distance travelled.
-  return microseconds / 29 / 2;
-}
-
 
