@@ -35,12 +35,15 @@ RGB rgbValuesTemp[NUMPIXELS];			            	                                   
             
 const int sensorPin = A1;					                                  
 unsigned long debounceDelay = 10;                                 
-const int timer = 40;						                                  
+int timer = 250;						                                  
 const int powerCheckTimer = 500;			                                             // burde vært en liste
             
 int sensorValue;                                  
 unsigned int counting;                                  
-bool lightMode;                                 
+bool lightMode;
+bool movingFlag;     
+bool blinkFlag;
+bool ledState;                      
 //int sensorMax = 0;						                                                   // bruk om tid til
 //int sensorMin = 1023;						                                                 // bruk om tid til
             
@@ -73,9 +76,13 @@ void bootUpSequence()
 {
   pixels.begin();
   
+  regenerateColorsRandom();
+
+  /*
   for (int i = 0; i < NUMPIXELS; i++) {
   	setLedColor(i, random(255), random(255), random(255));
   }
+  */
   
   int delTime = 300;
   
@@ -101,6 +108,18 @@ void setLedColor(int pos, int red, int green, int blue)
   rgbValues[pos].r = red;
   rgbValues[pos].g = green;
   rgbValues[pos].b = blue;
+}
+
+void regenerateColorsRandom() {
+  for (int i = 0; i < NUMPIXELS; i++) {
+  	setLedColor(i, random(255), random(255), random(255));
+  }
+}
+
+void setAllColors(int r, int g, int b) {
+  for (int i = 0; i < NUMPIXELS; i++) {
+  	setLedColor(i, r, g, b);
+  }
 }
 
 // tilbakestill posisjon
@@ -169,7 +188,7 @@ void saveLedState()
 // plasserer temparray tilbake i hovedarray
 void restartLed()
 {
-  memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);                                
+  memcpy(rgbValues, rgbValuesTemp, NUMPIXELS);
 }
 
 // sjekk om arduino skal skrues av med langt knappetrykk 
@@ -220,7 +239,51 @@ void checkLightMode(struct Button &button)
   } 
 }
 
-// kode som må kalles for at lysene skal lyse
+void checkBlinkMode(struct Button &button)
+{
+  int temp = button.presses;
+  if (button.heldInstant > 500 || blinkFlag) {
+    if (button.heldInstant < 500) {
+      button.heldInstant = 0;
+      blinkFlag = true;
+    } else if (button.heldInstant > 500 && blinkFlag) {
+      blinkFlag = false;
+      button.heldInstant = 0;
+    } else {
+      blinkFlag = true;
+      button.heldInstant = 0;
+    }
+  } 
+}
+
+void speedModes(int &prevTime, struct Button &button) {
+  if (millis() - prevTime > timer) {
+    prevTime = millis();
+
+    if (blinkFlag) {
+      if (ledState == true) {
+        startList(0);
+        ledState = false;
+      } else {
+        startList(255);
+        ledState = true;
+      }
+    }
+
+    if (button.presses % 3 == 1 && button.heldInstant < 500) {
+      timer = 100;
+    } else if (button.presses % 3 == 2 && button.heldInstant < 500) {
+      timer = 50;
+    } else {
+      timer = 250;
+      shiftLEDforward();
+    }
+  }
+}
+
+
+
+// kode som må kalles for at lysene skal oppdateres
 void startList(int brightness) 
 {
   pixels.setBrightness(brightness);
@@ -239,7 +302,7 @@ void setup()
   initArrays();
   pinMode(sensorPin, INPUT);
   bootUpSequence();                                
-  Serial.begin(9600);                               // debug
+  Serial.begin(9600);                               // for debug
 }
 
 void loop() 
@@ -255,24 +318,30 @@ void loop()
   delay(10);
   
   checkLightMode(colorBtn);                               // når det er mørkt lyser den mindre
+  checkBlinkMode(modeBtn);
 
-  
-  // fiks dette i en egen funksjon
-  if (millis() - prevTime > timer){
-    prevTime = millis();
-    shiftLEDforward();
-    if (i == 0) {
-    	i = 100;
+  speedModes(prevTime, modeBtn);
+
+  if (!lightMode && !blinkFlag) {
+    if(colorBtn.presses % 3 == 1 && colorBtn.heldInstant < 500) {
+      if (colorBtn.state != colorBtn.prevState) {
+        regenerateColorsRandom();
+        startList(255);
+      }
+    } else if (colorBtn.presses % 3 == 2 && colorBtn.heldInstant < 500) {
+      if(colorBtn.presses != colorBtn.prevState) {
+        if (colorBtn.presses % 4 == 1) {
+          setAllColors(255,0,0);
+        } else if (colorBtn.presses % 4 == 2) {
+          setAllColors(0,255,0);
+        } else if (colorBtn.presses % 4 == 3) {
+          setAllColors(0,0,255);
+        }
+          startList(255);
+      }
     } else {
-    	i = 0;
+      startList(255);
     }
-    if (i > 250) {
-   	  i = 0;
-    }
-  }
-
-  if (!lightMode) {
-    startList(255);
   }
   powerCheck(powerBtn);
   
